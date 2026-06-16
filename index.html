@@ -67,9 +67,12 @@
     <!-- RESULTS -->
     <section aria-label="結果">
 
-      <div class="toggle" role="tablist">
-        <button class="toggle-btn active" id="tabBe" type="button">損益分岐点</button>
-        <button class="toggle-btn" id="tabAnnual" type="button">年間シミュレーション</button>
+      <div class="results-bar">
+        <div class="toggle" role="tablist">
+          <button class="toggle-btn active" id="tabBe" type="button">損益分岐点</button>
+          <button class="toggle-btn" id="tabAnnual" type="button">年間シミュレーション</button>
+        </div>
+        <button class="save-btn" id="saveBtn" type="button">🔗 この内容を保存・共有</button>
       </div>
 
       <!-- ============ VIEW: 損益分岐点 ============ -->
@@ -293,6 +296,33 @@
 
   const costs = () => ({ fixed: sumItems(fixedItems), variable: sumItems(varItems), price: num(priceEl) });
   const be = () => { const c = costs(); const cm = c.price - c.variable; return cm > 0 ? c.fixed / cm : 100; };
+
+  // ---- 入力状態の保存・共有（URLハッシュに埋め込む） ----
+  const cleanItems = (a) => Array.isArray(a) ? a.map(x => ({ name: String((x && x.name) || ""), amount: parseFloat(x && x.amount) || 0 })) : null;
+  function snapshot(){
+    return { f: fixedItems, v: varItems, i: investItems, p: num(priceEl), s: sales, st: $("stepSel").value, vw: activeView };
+  }
+  function encodeState(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))); }
+  function applyState(o){
+    const f = cleanItems(o.f), v = cleanItems(o.v), iv = cleanItems(o.i);
+    if (f) fixedItems = f;
+    if (v) varItems = v;
+    if (iv) investItems = iv;
+    if (o.p != null) priceEl.value = parseFloat(o.p) || 0;
+    if (Array.isArray(o.s) && o.s.length === 12) sales = o.s.map(n => parseInt(n, 10) || 0);
+    if (o.st) $("stepSel").value = o.st;
+    if (o.vw) activeView = (o.vw === "annual" ? "annual" : "be");
+    buildList($("fixedList"), fixedItems, 1000);
+    buildList($("varList"), varItems, 100);
+    buildList($("investList"), investItems, 10000);
+    buildMonths();
+  }
+  function loadFromURL(){
+    const m = location.hash.match(/[#&]s=([^&]+)/);
+    if (!m) return false;
+    try { applyState(JSON.parse(decodeURIComponent(escape(atob(m[1]))))); return true; }
+    catch (e) { return false; }
+  }
 
   // ---- 項目別リスト（固定費・変動費） ----
   function buildList(listEl, items, step){
@@ -597,13 +627,27 @@
   document.querySelectorAll(".preset[data-pat]").forEach(b => b.addEventListener("click", () => applyPattern(b.dataset.pat)));
   $("tabBe").addEventListener("click", () => setView("be"));
   $("tabAnnual").addEventListener("click", () => setView("annual"));
+  $("saveBtn").addEventListener("click", () => {
+    const url = location.origin + location.pathname + "#s=" + encodeState(snapshot());
+    try { history.replaceState(null, "", url); } catch (e) {}
+    const b = $("saveBtn"), label = b.textContent;
+    const flash = () => { b.textContent = "✓ URLをコピーしました"; b.classList.add("copied"); setTimeout(() => { b.textContent = label; b.classList.remove("copied"); }, 2200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(flash).catch(() => window.prompt("このURLをコピーして共有してください", url));
+    } else {
+      window.prompt("このURLをコピーして共有してください", url);
+    }
+  });
 
   // ---- 初期化 ----
-  buildList($("fixedList"), fixedItems, 1000);
-  buildList($("varList"), varItems, 100);
-  buildList($("investList"), investItems, 10000);
-  setPattern("grow"); buildMonths();   // 年間の販売数を初期化（描画は年間タブを開いた時）
-  update();                            // 合計表示＋損益分岐点を初期描画
+  setPattern("grow");                  // 年間販売数のデフォルトを用意
+  if (!loadFromURL()){                 // 保存URLがあれば状態を復元、なければ初期内訳で描画
+    buildList($("fixedList"), fixedItems, 1000);
+    buildList($("varList"), varItems, 100);
+    buildList($("investList"), investItems, 10000);
+    buildMonths();
+  }
+  setView(activeView);                 // タブ状態を反映しつつ合計表示＋描画
 })();
 </script>
 </body>
