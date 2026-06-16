@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>年間損益シミュレーション | FCオーナー向け収支シミュレーション</title>
+<meta name="description" content="月ごとの販売数を入れるだけで、年間の売上・費用・損益と初期投資の回収月が、グラフと表でしっかり分かる年間収支シミュレーション。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="nav">
+      <a href="index.html">損益分岐点</a>
+      <a href="annual.html" class="active">年間シミュレーション</a>
+    </nav>
+    <span class="eyebrow"><span class="dot"></span>年間収支シミュレーション</span>
+    <h1>年間損益<span class="hl">シミュレーション</span></h1>
+    <p class="lead">月ごとの販売数を入れるだけ。<br>1年間の売上・費用・損益と、開業時の初期投資が「何ヶ月目で回収できるか」がグラフで分かります。</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+
+    <!-- INPUT -->
+    <section class="card card-pad" aria-label="入力">
+      <h2><span class="ic">¥</span>前提を入力</h2>
+      <p class="sub">コストは損益分岐点ページの数字を初期値として読み込みます。月ごとの販売数を入れると右側が自動更新されます。</p>
+
+      <div class="field">
+        <label for="aFixed">月間の固定費 <span class="hint">家賃・人件費 など（毎月）</span></label>
+        <div class="input-shell"><span class="pre">¥</span><input id="aFixed" type="number" inputmode="numeric" min="0" step="1000" /><span class="post">／ 月</span></div>
+      </div>
+      <div class="field">
+        <label for="aVar">1件あたりの変動費 <span class="hint">材料・決済手数料 など</span></label>
+        <div class="input-shell"><span class="pre">¥</span><input id="aVar" type="number" inputmode="numeric" min="0" step="100" /><span class="post">／ 件</span></div>
+      </div>
+      <div class="field">
+        <label for="aPrice">単価（客単価）</label>
+        <div class="input-shell"><span class="pre">¥</span><input id="aPrice" type="number" inputmode="numeric" min="0" step="100" /><span class="post">／ 件</span></div>
+      </div>
+      <div class="field">
+        <label for="aInvest">初期投資（開業費・一括） <span class="hint">内装・機器・加盟金 など。回収月の計算に使います</span></label>
+        <div class="input-shell"><span class="pre">¥</span><input id="aInvest" type="number" inputmode="numeric" min="0" step="10000" value="1500000" /><span class="post">一括</span></div>
+      </div>
+
+      <div class="field">
+        <label>月ごとの販売数 <span class="hint">1〜12月。季節変動もそのまま入れられます</span></label>
+        <div class="bulk-row">
+          <div class="input-shell"><input id="bulkVal" type="number" inputmode="numeric" min="0" step="1" placeholder="例: 150" /><span class="post">件で</span></div>
+          <button class="btn-mini" id="bulkApply" type="button">全月に一括</button>
+        </div>
+        <div class="presets" style="margin-bottom:14px">
+          <button class="preset" data-pat="flat" type="button">毎月一定</button>
+          <button class="preset" data-pat="grow" type="button">右肩上がり</button>
+          <button class="preset" data-pat="season" type="button">季節変動</button>
+        </div>
+        <div class="month-grid" id="monthGrid"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn ghost" id="reset">初期状態に戻す</button>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section aria-label="結果">
+
+      <div class="kpis">
+        <div class="kpi hero-kpi" id="profitCard">
+          <div class="k-label">年間損益（12ヶ月の合計）</div>
+          <div class="k-value"><span id="annualProfit">—</span></div>
+          <div class="badge" id="profitBadge">—</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">年間売上高</div>
+          <div class="k-value" style="font-size:23px"><span id="annualRev">—</span></div>
+          <div class="k-note">12ヶ月の売上合計</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">年間総費用</div>
+          <div class="k-value" style="font-size:23px"><span id="annualCost">—</span></div>
+          <div class="k-note" id="costNote">固定費＋変動費（初期投資は別）</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">月あたり平均損益</div>
+          <div class="k-value" style="font-size:23px"><span id="avgProfit">—</span></div>
+          <div class="k-note">年間損益 ÷ 12ヶ月</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">初期投資の回収</div>
+          <div class="k-value"><span id="payback">—</span></div>
+          <div class="k-note" id="paybackNote">累計損益がプラスに転じる月</div>
+        </div>
+      </div>
+
+      <div class="card card-pad chart-card">
+        <h2><span class="ic">📊</span>月別の売上・費用・損益</h2>
+        <p class="sub">月ごとの売上（青）と総費用（緑）、そして月間損益（オレンジ線）の推移です。</p>
+        <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
+        <div class="legend-note">
+          <span><i class="sq" style="background:#2563eb"></i>売上</span>
+          <span><i class="sq" style="background:#0f9d6e"></i>総費用</span>
+          <span><i style="background:#f59e0b"></i>月間損益</span>
+        </div>
+      </div>
+
+      <div class="card card-pad chart-card">
+        <h2><span class="ic">📈</span>累計損益の推移（初期投資の回収）</h2>
+        <p class="sub">開業時の初期投資からスタートし、線が0ラインを上回った月が「投資回収」です。</p>
+        <div class="chart-wrap"><canvas id="chartCumulative"></canvas></div>
+        <div class="legend-note">
+          <span><i style="background:#0f9d6e"></i>累計損益（初期投資差引後）</span>
+          <span><i class="sq" style="background:#f59e0b"></i>投資回収の月</span>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <h2><span class="ic">▦</span>年間損益シミュレーション表</h2>
+        <p class="sub">月ごとの売上・費用・損益と、累計損益（初期投資を差し引いた額）。赤字は赤、黒字は青です。</p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>月</th><th>販売数</th><th>売上</th><th>総費用</th><th>月間損益</th><th>累計損益</th></tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+<footer class="wrap">
+  年間損益シミュレーション ・ 月ごとの販売数を入れるだけで1年間の収支がわかる
+</footer>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const yen = (n) => (n < 0 ? "−¥" : "¥") + Math.abs(Math.round(n)).toLocaleString("ja-JP");
+  const num = (el) => { const v = parseFloat(el.value); return isFinite(v) && v >= 0 ? v : 0; };
+  const MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+  const SEASON = [0.85,0.90,1.00,1.10,1.15,1.20,1.25,1.20,1.05,1.00,0.95,1.30]; // 季節変動の係数（12月ピーク）
+
+  // 損益分岐点ページのコストを初期値として読み込む
+  let saved = { fixed: 814000, variable: 1300, price: 7700 };
+  try { const s = JSON.parse(localStorage.getItem("be_costs")); if (s && s.price) saved = s; } catch(e){}
+  $("aFixed").value = saved.fixed;
+  $("aVar").value   = saved.variable;
+  $("aPrice").value = saved.price;
+
+  let sales = new Array(12).fill(0);
+  let chartM, chartC;
+
+  function be(){ const cm = num($("aPrice")) - num($("aVar")); return cm > 0 ? num($("aFixed")) / cm : 100; }
+
+  // 月別入力を描画
+  function buildMonths(){
+    const grid = $("monthGrid");
+    grid.innerHTML = "";
+    sales.forEach((v, i) => {
+      const row = document.createElement("div"); row.className = "month-row";
+      const lab = document.createElement("span"); lab.className = "m-label"; lab.textContent = MONTHS[i];
+      const shell = document.createElement("div"); shell.className = "m-shell";
+      const inp = document.createElement("input");
+      inp.type = "number"; inp.inputMode = "numeric"; inp.min = "0"; inp.step = "1"; inp.value = v;
+      inp.addEventListener("input", () => { sales[i] = parseInt(inp.value, 10) || 0; compute(); });
+      const post = document.createElement("span"); post.className = "post"; post.textContent = "件";
+      shell.append(inp, post);
+      row.append(lab, shell);
+      grid.appendChild(row);
+    });
+  }
+
+  function applyPattern(kind){
+    const b = be();
+    if (kind === "flat")  sales = new Array(12).fill(Math.round(b * 1.2));
+    if (kind === "grow"){ const s = Math.round(b*0.8), e = Math.round(b*1.7); sales = MONTHS.map((_, i) => Math.round(s + (e - s) * i / 11)); }
+    if (kind === "season") sales = SEASON.map(m => Math.round(b * 1.2 * m));
+    buildMonths(); compute();
+  }
+
+  function compute(){
+    const fixed = num($("aFixed")), variable = num($("aVar")), price = num($("aPrice")), invest = num($("aInvest"));
+
+    const rev = [], cost = [], prof = [], cumNet = [];
+    let cum = 0, annualRev = 0, annualVar = 0, paybackMonth = 0;
+    for (let i = 0; i < 12; i++){
+      const u = sales[i];
+      const r = u * price, vc = u * variable, c = fixed + vc, p = r - c;
+      rev.push(r); cost.push(c); prof.push(p);
+      cum += p; cumNet.push(cum - invest);
+      annualRev += r; annualVar += vc;
+      if (paybackMonth === 0 && (cum - invest) >= 0 && invest > 0) paybackMonth = i + 1;
+    }
+    const annualFixed = fixed * 12;
+    const annualCost = annualFixed + annualVar;
+    const annualProfit = annualRev - annualCost;
+
+    // ----- KPI -----
+    $("annualProfit").textContent = yen(annualProfit);
+    $("annualRev").textContent    = yen(annualRev);
+    $("annualCost").textContent   = yen(annualCost);
+    $("avgProfit").textContent    = yen(annualProfit / 12);
+    $("costNote").textContent     = "固定費 " + yen(annualFixed) + "＋変動費 " + yen(annualVar) + "（初期投資は別）";
+
+    const isLoss = annualProfit < 0;
+    $("profitCard").classList.toggle("is-loss", isLoss);
+    $("profitBadge").textContent = isLoss ? "年間で赤字です" : "年間で黒字です";
+
+    if (invest <= 0){
+      $("payback").textContent = "—";
+      $("paybackNote").textContent = "初期投資なし";
+    } else if (paybackMonth > 0){
+      $("payback").innerHTML = paybackMonth + '<span class="unit">ヶ月目</span>';
+      $("paybackNote").textContent = "累計損益がプラスに転じる月";
+    } else {
+      $("payback").textContent = "未回収";
+      $("paybackNote").textContent = "12ヶ月では未回収（年末で累計 " + yen(cumNet[11]) + "）";
+    }
+
+    // ----- 表 -----
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    for (let i = 0; i < 12; i++){
+      const tr = document.createElement("tr");
+      if (paybackMonth === i + 1) tr.className = "payback-row";
+      const pc = prof[i] < 0 ? "loss" : "profit";
+      const cc = cumNet[i] < 0 ? "loss" : "profit";
+      tr.innerHTML =
+        "<td>" + MONTHS[i] + "</td>" +
+        "<td>" + sales[i].toLocaleString("ja-JP") + "</td>" +
+        "<td>" + yen(rev[i]) + "</td>" +
+        "<td>" + yen(cost[i]) + "</td>" +
+        '<td class="' + pc + '">' + yen(prof[i]) + "</td>" +
+        '<td class="' + cc + '">' + yen(cumNet[i]) + "</td>";
+      tb.appendChild(tr);
+    }
+    const totalUnits = sales.reduce((s, v) => s + v, 0);
+    const tot = document.createElement("tr"); tot.className = "total-row";
+    tot.innerHTML =
+      "<td>年間合計</td>" +
+      "<td>" + totalUnits.toLocaleString("ja-JP") + "</td>" +
+      "<td>" + yen(annualRev) + "</td>" +
+      "<td>" + yen(annualCost) + "</td>" +
+      '<td class="' + (annualProfit < 0 ? "loss" : "profit") + '">' + yen(annualProfit) + "</td>" +
+      '<td class="' + (cumNet[11] < 0 ? "loss" : "profit") + '">' + yen(cumNet[11]) + "</td>";
+    tb.appendChild(tot);
+
+    drawMonthly(rev, cost, prof);
+    drawCumulative(cumNet, invest, paybackMonth);
+  }
+
+  const yTick = (v) => "¥" + Math.round(v / 10000).toLocaleString("ja-JP") + "万";
+  const fonts = { family: "'Inter'" };
+
+  function drawMonthly(rev, cost, prof){
+    if (chartM) chartM.destroy();
+    chartM = new Chart($("chartMonthly").getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: MONTHS,
+        datasets: [
+          { label: "売上", data: rev, backgroundColor: "#2563eb", borderRadius: 4, order: 2, categoryPercentage: 0.7, barPercentage: 0.9 },
+          { label: "総費用", data: cost, backgroundColor: "#0f9d6e", borderRadius: 4, order: 2, categoryPercentage: 0.7, barPercentage: 0.9 },
+          { label: "月間損益", data: prof, type: "line", borderColor: "#f59e0b", backgroundColor: "#f59e0b",
+            borderWidth: 3, pointRadius: 3, pointHoverRadius: 5, tension: .25, order: 0 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: { ticks: { color: "#94a3b8", font: { family: "'Noto Sans JP'" } }, grid: { display: false } },
+          y: { ticks: { color: "#94a3b8", font: fonts, callback: yTick }, grid: { color: "#eef2f7" } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#0f172a", padding: 12, cornerRadius: 10, titleFont: { family:"'Noto Sans JP'" }, bodyFont: { family:"'Noto Sans JP'" },
+            callbacks: { label: (ctx) => ctx.dataset.label + ": " + yen(ctx.parsed.y) }
+          }
+        }
+      }
+    });
+  }
+
+  function drawCumulative(cumNet, invest, paybackMonth){
+    const labels = ["開始"].concat(MONTHS);
+    const data = [-invest].concat(cumNet);
+    const zero = data.map(() => 0);
+    const pt = paybackMonth > 0 ? [{ x: paybackMonth, y: cumNet[paybackMonth - 1] }] : [];
+    if (chartC) chartC.destroy();
+    chartC = new Chart($("chartCumulative").getContext("2d"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label: "累計損益", data, borderColor: "#0f9d6e", borderWidth: 3, pointRadius: 2.5, tension: .2,
+            fill: true, backgroundColor: "rgba(15,157,110,.10)", order: 1 },
+          { label: "損益ゼロ", data: zero, borderColor: "#cbd5e1", borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, order: 2 },
+          { label: "投資回収", data: pt, type: "scatter", parsing: false, showLine: false,
+            backgroundColor: "#f59e0b", borderColor: "#fff", borderWidth: 3, pointRadius: 7, pointHoverRadius: 9, order: 0 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: { ticks: { color: "#94a3b8", font: { family: "'Noto Sans JP'" } }, grid: { display: false } },
+          y: { ticks: { color: "#94a3b8", font: fonts, callback: yTick }, grid: { color: "#eef2f7" } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#0f172a", padding: 12, cornerRadius: 10, titleFont: { family:"'Noto Sans JP'" }, bodyFont: { family:"'Noto Sans JP'" },
+            filter: (item) => item.dataset.label !== "損益ゼロ",
+            callbacks: {
+              label: (ctx) => {
+                if (ctx.dataset.label === "投資回収") return "投資回収: " + yen(ctx.parsed.y);
+                return "累計損益: " + yen(ctx.parsed.y);
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // events
+  ["aFixed","aVar","aPrice","aInvest"].forEach(id => $(id).addEventListener("input", compute));
+  $("bulkApply").addEventListener("click", () => {
+    const v = parseInt($("bulkVal").value, 10);
+    if (isFinite(v) && v >= 0){ sales = new Array(12).fill(v); buildMonths(); compute(); }
+  });
+  document.querySelectorAll(".preset[data-pat]").forEach(b => b.addEventListener("click", () => applyPattern(b.dataset.pat)));
+  $("reset").addEventListener("click", () => { $("aInvest").value = 1500000; applyPattern("grow"); });
+
+  // 初期描画（右肩上がりパターン）
+  applyPattern("grow");
+})();
+</script>
+</body>
+</html>
