@@ -152,8 +152,10 @@
           <h2><span class="ic">¥</span>年間の前提</h2>
           <p class="sub">左で入れたコスト（固定費・変動費・単価）を使います。ここでは初期投資と月ごとの販売数を入れてください。</p>
           <div class="field">
-            <label for="aInvest">初期投資（開業費・一括） <span class="hint">内装・機器・加盟金 など。回収月の計算に使います</span></label>
-            <div class="input-shell"><span class="pre">¥</span><input id="aInvest" type="number" inputmode="numeric" min="0" step="10000" value="1500000" /><span class="post">一括</span></div>
+            <label>初期投資（開業費） <span class="hint">内装・機器・加盟金 など。項目ごとに入力できます。回収月の計算に使います</span></label>
+            <div class="item-list" id="investList"></div>
+            <button class="add-item" id="addInvest" type="button">＋ 初期投資の項目を追加</button>
+            <div class="sum-line"><span class="sum-label">初期投資 合計</span><span class="sum-val" id="investSum">¥0<span class="u"> 一括</span></span></div>
           </div>
           <div class="field" style="margin-bottom:0">
             <label>月ごとの販売数 <span class="hint">1〜12月。季節変動もそのまま入れられます</span></label>
@@ -245,7 +247,7 @@
 <script>
 (function(){
   const $ = (id) => document.getElementById(id);
-  const priceEl = $("price"), investEl = $("aInvest");
+  const priceEl = $("price");
   const yen = (n) => (n < 0 ? "−¥" : "¥") + Math.abs(Math.round(n)).toLocaleString("ja-JP");
   const num = (el) => { const v = parseFloat(el.value); return isFinite(v) && v >= 0 ? v : 0; };
   const sumItems = (items) => items.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0);
@@ -278,9 +280,13 @@
     }
   };
 
+  // 初期投資の初期内訳（合計 ¥1,500,000）
+  const INVEST_DEFAULT = [{name:"加盟金",amount:300000},{name:"内装工事",amount:600000},{name:"機器・備品",amount:400000},{name:"物件取得費（敷金等）",amount:150000},{name:"その他開業費",amount:50000}];
+
   const clone = (arr) => arr.map(x => ({ name: x.name, amount: x.amount }));
-  let fixedItems = clone(PRESETS.sample.fixed);
-  let varItems   = clone(PRESETS.sample.variable);
+  let fixedItems  = clone(PRESETS.sample.fixed);
+  let varItems    = clone(PRESETS.sample.variable);
+  let investItems = clone(INVEST_DEFAULT);
   let sales = [];                 // 年間：月ごとの販売数（12個）
   let activeView = "be";          // "be" or "annual"
   let chart, chartM, chartC;      // 各グラフのインスタンス
@@ -441,7 +447,8 @@
 
   function renderAnnual(){
     const { fixed, variable, price } = costs();
-    const invest = num(investEl);
+    const invest = sumItems(investItems);
+    $("investSum").innerHTML = yen(invest) + '<span class="u"> 一括</span>';
     const rev = [], cost = [], prof = [], cumNet = [];
     let cum = 0, annualRev = 0, annualVar = 0, paybackMonth = 0;
     for (let i = 0; i < 12; i++){
@@ -566,7 +573,11 @@
   // ---- events ----
   priceEl.addEventListener("input", update);
   $("stepSel").addEventListener("change", update);
-  investEl.addEventListener("input", renderAnnual);
+  $("addInvest").addEventListener("click", () => {
+    investItems.push({ name: "", amount: 0 });
+    buildList($("investList"), investItems, 10000); renderAnnual();
+    const rows = $("investList").querySelectorAll(".item-name"); if (rows.length) rows[rows.length - 1].focus();
+  });
   $("addFixed").addEventListener("click", () => {
     fixedItems.push({ name: "", amount: 0 });
     buildList($("fixedList"), fixedItems, 1000); update();
@@ -590,6 +601,7 @@
   // ---- 初期化 ----
   buildList($("fixedList"), fixedItems, 1000);
   buildList($("varList"), varItems, 100);
+  buildList($("investList"), investItems, 10000);
   setPattern("grow"); buildMonths();   // 年間の販売数を初期化（描画は年間タブを開いた時）
   update();                            // 合計表示＋損益分岐点を初期描画
 })();
