@@ -56,6 +56,14 @@ header.hero p.lead { color: #c7d4e5; font-size: clamp(14px,2.2vw,16.5px); max-wi
 .nav a:hover { color: #fff; }
 .nav a.active { background: #fff; color: var(--brand-deep); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 
+/* ---------- 結果ビュー切替トグル ---------- */
+.toggle { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.16); border-radius: 13px; margin-bottom: 22px; }
+.toggle-btn { border: 0; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13.5px; color: #c7d4e5; background: transparent; padding: 10px 22px; border-radius: 9px; transition: background .15s, color .15s, box-shadow .15s; }
+.toggle-btn:hover { color: #fff; }
+.toggle-btn.active { background: #fff; color: var(--brand-deep); box-shadow: 0 2px 8px rgba(0,0,0,.14); }
+.view { display: none; }
+.view.active { display: block; }
+
 /* ---------- Main layout ---------- */
 main { padding-bottom: 70px; }
 .grid {
