@@ -302,7 +302,7 @@
   function snapshot(){
     return { f: fixedItems, v: varItems, i: investItems, p: num(priceEl), s: sales, st: $("stepSel").value, vw: activeView };
   }
-  function encodeState(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))); }
+  function encodeState(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
   function applyState(o){
     const f = cleanItems(o.f), v = cleanItems(o.v), iv = cleanItems(o.i);
     if (f) fixedItems = f;
@@ -320,8 +320,11 @@
   function loadFromURL(){
     const m = location.hash.match(/[#&]s=([^&]+)/);
     if (!m) return false;
-    try { applyState(JSON.parse(decodeURIComponent(escape(atob(m[1]))))); return true; }
-    catch (e) { return false; }
+    try {
+      let b = m[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (b.length % 4) b += "=";
+      applyState(JSON.parse(decodeURIComponent(escape(atob(b))))); return true;
+    } catch (e) { return false; }
   }
 
   // ---- 項目別リスト（固定費・変動費） ----
@@ -641,13 +644,23 @@
 
   // ---- 初期化 ----
   setPattern("grow");                  // 年間販売数のデフォルトを用意
-  if (!loadFromURL()){                 // 保存URLがあれば状態を復元、なければ初期内訳で描画
+  if (!loadFromURL()){                 // #s= 保存URLがあれば復元、なければ初期内訳で描画
     buildList($("fixedList"), fixedItems, 1000);
     buildList($("varList"), varItems, 100);
     buildList($("investList"), investItems, 10000);
     buildMonths();
   }
   setView(activeView);                 // タブ状態を反映しつつ合計表示＋描画
+
+  // 短縮リンク（?load=名前）で保存済みシナリオを読み込む
+  (function(){
+    const name = new URLSearchParams(location.search).get("load");
+    if (!name || !/^[a-z0-9_-]+$/i.test(name)) return;
+    fetch("scenarios/" + name + ".json")
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(o => { applyState(o); setView(activeView); })
+      .catch(() => {});
+  })();
 })();
 </script>
 </body>
