@@ -154,7 +154,18 @@
   @media (max-width: 520px){ .chart-wrap { height: 280px; } }
 
   /* ---------- Table ---------- */
-  .table-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .table-scroll { overflow: auto; max-height: 560px; border-radius: 12px; border: 1px solid var(--line); -webkit-overflow-scrolling: touch; }
+  .step-ctrl { display: flex; align-items: center; gap: 10px; margin: 2px 0 16px; flex-wrap: wrap; }
+  .step-ctrl > span { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+  .step-ctrl select {
+    font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--ink);
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 36px 9px 13px; background-color: #fbfdff;
+    cursor: pointer; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .step-ctrl select:focus { outline: 0; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); background-color: #fff; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 460px; }
   thead th {
     background: var(--brand); color: #fff; font-weight: 700; font-size: 12.5px;
@@ -287,6 +298,20 @@
       <div class="card card-pad">
         <h2><span class="ic">▦</span>損益シミュレーション表</h2>
         <p class="sub">販売数ごとの売上・費用・損益。赤字は赤、黒字は青で表示されます。</p>
+        <div class="step-ctrl">
+          <span>表示の刻み</span>
+          <select id="stepSel" aria-label="表示する販売数の刻み">
+            <option value="auto">自動</option>
+            <option value="1">1件ずつ</option>
+            <option value="2">2件ずつ</option>
+            <option value="5">5件ずつ</option>
+            <option value="10">10件ずつ</option>
+            <option value="20">20件ずつ</option>
+            <option value="25">25件ずつ</option>
+            <option value="50">50件ずつ</option>
+            <option value="100">100件ずつ</option>
+          </select>
+        </div>
         <div class="table-scroll">
           <table>
             <thead>
@@ -346,14 +371,16 @@
 
     // 表・グラフのレンジ（損益分岐点を中心に表示）。BEが無い場合は固定費から目安レンジ
     const anchor = hasBE ? beExact : (price > 0 ? fixed / price : 50);
-    const step = Math.max(1, Math.round(niceStep((anchor * 2.2) / 20)));
-    const maxUnits = step * 20;
+    const autoStep = Math.max(1, Math.round(niceStep((anchor * 2.2) / 20)));
+    const maxUnits = autoStep * 20;                  // グラフ・表の上限（自動）
+    const sel = $("stepSel").value;                  // 表の刻み幅（自動 or 手動指定）
+    const step = sel === "auto" ? autoStep : Math.max(1, parseInt(sel, 10));
 
     // ----- 表 -----
     const tb = $("tbody");
     tb.innerHTML = "";
     let beRowInserted = false;
-    for (let u = 0; u <= maxUnits + 0.5; u += step){
+    for (let u = 0, count = 0; u <= maxUnits + 0.5 && count < 1000; u += step, count++){
       const units = Math.round(u);
       const sales = units * price;
       const cost  = fixed + units * variable;
@@ -430,6 +457,7 @@
 
   // events
   [fixedEl, varEl, priceEl].forEach(el => el.addEventListener("input", render));
+  $("stepSel").addEventListener("change", render);
   document.querySelectorAll(".preset").forEach(b => b.addEventListener("click", () => {
     fixedEl.value = b.dataset.f; varEl.value = b.dataset.v; priceEl.value = b.dataset.p; render();
   }));
